@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        ( (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         (request.auth.token.email == "dilliswarkinjarapu@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isStaff() {
+      return isAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['police', 'tourism_officer']);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string && isValidEmail(data.email) &&
+             data.role in ['tourist', 'police', 'tourism_officer', 'admin'];
+    }
+
+    function isValidAlert(data) {
+      return data.keys().hasAll(['userId', 'type', 'status', 'timestamp', 'location', 'priority']) &&
+             data.userId is string &&
+             data.type in ['SOS', 'GEOFENCE_ENTER', 'GEOFENCE_EXIT', 'ROUTE_DEVIATION', 'SILENT_DISTRESS', 'WEATHER_ALERT', 'MISSING_PERSON'] &&
+             data.status in ['active', 'resolved'] &&
+             data.priority in ['low', 'medium', 'high', 'critical'] &&
+             data.timestamp is timestamp &&
+             data.location is map;
+    }
+
+    function isValidLedger(data) {
+      return data.keys().hasAll(['userId', 'action', 'dataHash', 'previousHash', 'timestamp']) &&
+             data.userId is string &&
+             data.action is string &&
+             data.dataHash is string &&
+             data.previousHash is string &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidCommunityReport(data) {
+      return data.keys().hasAll(['userId', 'userDisplayName', 'type', 'location', 'timestamp']) &&
+             data.userId is string &&
+             data.userDisplayName is string &&
+             data.type in ['SAFE', 'WELL_LIT', 'CROWDED', 'HELPFUL_STAFF', 'UNSAFE'] &&
+             data.location is map &&
+             data.timestamp is timestamp;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow get: if isAuthenticated() && (isOwner(userId) || isStaff() || (resource.data.trackingEnabled == true && request.query.token == resource.data.trackingToken));
+      allow list: if isAuthenticated() && isStaff();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'tourist' || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(userId) || isStaff()) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /alerts/{alertId} {
+      // Allow list if the user is staff or filtering by their own userId
+      allow list: if isAuthenticated() && (isStaff() || request.query.userId == request.auth.uid);
+      allow get: if isAuthenticated() && (isOwner(resource.data.userId) || isStaff());
+      allow create: if isAuthenticated() && (isOwner(request.resource.data.userId) || isStaff()) && isValidAlert(request.resource.data);
+      allow update: if isAuthenticated() && isStaff() && isValidAlert(request.resource.data);
+    }
+
+    match /geofences/{geofenceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isStaff() && request.resource.data.keys().hasAll(['name', 'type', 'center', 'radius']);
+    }
+
+    match /places/{placeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isStaff();
+    }
+
+    match /ledger/{ledgerId} {
+      allow list: if isAuthenticated() && isStaff();
+      allow get: if isAuthenticated() && isStaff();
+      allow create: if isAuthenticated() && isValidLedger(request.resource.data);
+      allow update, delete: if false; // Immutable ledger
+    }
+
+    match /community_reports/{reportId} {
+      allow list: if isAuthenticated() && isStaff();
+      allow get: if isAuthenticated() && (isOwner(resource.data.userId) || isStaff());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) && isValidCommunityReport(request.resource.data);
+      allow update, delete: if false;
+    }
+  }
+}

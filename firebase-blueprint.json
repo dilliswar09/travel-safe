@@ -1,0 +1,119 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with advanced safety and identity features.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["tourist", "police", "tourism_officer", "admin"] },
+        "lastKnownLocation": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" },
+            "timestamp": { "type": "string", "format": "date-time" }
+          }
+        },
+        "isMissing": { "type": "boolean" },
+        "qrCode": { "type": "string" },
+        "passportHash": { "type": "string" },
+        "validUntil": { "type": "string", "format": "date-time" },
+        "safetyScore": { "type": "number", "minimum": 0, "maximum": 100 },
+        "itinerary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "latitude": { "type": "number" },
+              "longitude": { "type": "number" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "failedLoginAttempts": { "type": "number" },
+        "trackingToken": { "type": "string" },
+        "trackingEnabled": { "type": "boolean" },
+        "consentGiven": { "type": "boolean" },
+        "language": { "type": "string" },
+        "lastInteractionTime": { "type": "number" },
+        "interactionCount": { "type": "number" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Emergency, geo-fence, and deviation alerts.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userDisplayName": { "type": "string" },
+        "type": { "type": "string", "enum": ["SOS", "GEOFENCE_ENTER", "GEOFENCE_EXIT", "ROUTE_DEVIATION", "SILENT_DISTRESS", "WEATHER_ALERT"] },
+        "location": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "status": { "type": "string", "enum": ["active", "resolved"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "details": { "type": "string" }
+      },
+      "required": ["userId", "type", "status", "timestamp", "priority"]
+    },
+    "Geofence": {
+      "title": "Geofence",
+      "description": "Predefined high-risk or important zones.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["HIGH_RISK", "TOURIST_SPOT", "HELP_CENTER"] },
+        "center": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "radius": { "type": "number" },
+        "riskScore": { "type": "number" }
+      },
+      "required": ["name", "type", "center", "radius"]
+    },
+    "Ledger": {
+      "title": "Ledger",
+      "description": "Blockchain-based audit trail.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "action": { "type": "string" },
+        "dataHash": { "type": "string" },
+        "previousHash": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "action", "dataHash", "previousHash", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    },
+    "alerts": {
+      "schema": "Alert",
+      "description": "Collection of emergency and system alerts."
+    },
+    "geofences": {
+      "schema": "Geofence",
+      "description": "Collection of defined geographic zones."
+    },
+    "ledger": {
+      "schema": "Ledger",
+      "description": "Blockchain audit trail."
+    }
+  }
+}

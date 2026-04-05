@@ -1,0 +1,9 @@
+{
+  "name": "Smart Tourism Safety & Monitoring System",
+  "description": "A comprehensive tourism safety platform featuring real-time location tracking, geo-fencing alerts, SOS/panic button, and an admin dashboard for police and tourism departments.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation",
+    "microphone"
+  ]
+}
